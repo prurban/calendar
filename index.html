@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://*.firebasedatabase.app https://*.firebaseio.com; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="theme-color" content="#141414"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Calendar"/>
+<link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="icon.png"/>
+<title>Calendar</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--acc:#a78bfa;--bg:#141414;--panel:#1a1a1a;--line:#2a2a2a}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:#e0e0e0;min-height:100vh}
+#app{display:flex;flex-direction:column;height:100vh}
+header{background:var(--panel);border-bottom:1px solid var(--line);padding:12px 24px;display:flex;align-items:center;gap:16px}
+header h1{font-size:18px;font-weight:700;color:var(--acc);letter-spacing:.5px}
+nav{display:flex;gap:8px;margin-left:auto}
+.tab-btn{background:#222;border:none;color:#888;padding:8px 18px;border-radius:20px;cursor:pointer;font-size:13px;font-weight:600;transition:all .15s}
+.tab-btn.active{background:var(--acc);color:#141414}
+.tab-btn:hover:not(.active){color:#e0e0e0;background:#2a2a2a}
+main{flex:1;overflow:auto;padding:20px 24px}
+.tab-pane{display:none}
+.tab-pane.active{display:block}
+/* upcoming strip */
+.up-wrap{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-bottom:16px}
+.up-title{font-size:11px;font-weight:800;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.up-day{display:flex;gap:10px;padding:5px 0;border-top:1px solid #1e1e1e;font-size:13px;align-items:baseline}
+.up-day:first-of-type{border-top:none}
+.up-date{color:#888;font-weight:700;white-space:nowrap;min-width:86px;font-size:12px}
+.up-evts{color:#ccc;line-height:1.5}
+.up-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:baseline}
+/* month nav */
+.cal-nav{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.cal-nav-btn{background:#222;border:none;color:#888;width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center}
+.cal-nav-btn:hover{background:#2a2a2a;color:#e0e0e0}
+.cal-title{font-size:18px;font-weight:800;flex:1;text-align:center}
+.btn-today{background:#222;border:1px solid #333;color:#aaa;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700}
+.btn-today:hover{border-color:var(--acc);color:var(--acc)}
+/* grid */
+.dow-row{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px}
+.dow{font-size:10px;font-weight:800;color:#555;text-transform:uppercase;letter-spacing:1px;text-align:center;padding:4px 0}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-cell{background:var(--panel);border:1px solid var(--line);border-radius:10px;min-height:92px;padding:6px;cursor:pointer;position:relative;overflow:hidden;transition:border-color .15s;display:flex;flex-direction:column;gap:2px}
+.cal-cell:hover{border-color:var(--acc)}
+.cal-cell.other{opacity:.32}
+.cal-cell.today{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+.cell-top{display:flex;align-items:center;gap:4px}
+.cell-num{font-size:12px;font-weight:800;color:#aaa}
+.cal-cell.today .cell-num{color:var(--acc)}
+.cell-num.ph{color:#f87171}
+.htag{font-size:8px;font-weight:800;border-radius:4px;padding:0 3px;line-height:1.4}
+.htag.q{background:#fbbf2422;color:#fbbf24}
+.htag.w{background:#22d3ee22;color:#22d3ee}
+.cell-banner{font-size:9px;color:var(--acc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700}
+.chip{font-size:10px;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#ccc}
+.chip .cdot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:4px}
+.chip.done{color:#555;text-decoration:line-through}
+.chip-more{font-size:9px;color:#666;font-weight:700}
+.cell-bars{margin-top:auto;display:flex;flex-direction:column;gap:2px}
+.bar{height:3px;border-radius:2px}
+.bar.kids{background:#fb923c}
+.bar.travel{background:#38bdf8}
+/* agenda */
+.ag-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+.ag-filters input,.ag-filters select{background:var(--panel);border:1px solid #333;color:#e0e0e0;padding:9px 12px;border-radius:8px;font-size:13px}
+.ag-filters input{flex:1;min-width:140px}
+.ag-filters input:focus,.ag-filters select:focus{outline:none;border-color:var(--acc)}
+.flt{background:#222;border:none;color:#888;padding:7px 14px;border-radius:16px;cursor:pointer;font-size:12px;font-weight:600}
+.flt.active{background:var(--acc);color:#141414}
+.ag-day{margin-bottom:2px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:8px}
+.ag-date{font-size:12px;font-weight:800;color:#888;text-transform:uppercase;letter-spacing:.6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;cursor:pointer}
+.ag-date:hover{color:var(--acc)}
+.ag-date .mini{font-size:9px;border-radius:4px;padding:1px 6px;font-weight:800}
+.ag-evt{display:flex;align-items:center;gap:8px;padding:6px 0 0;font-size:13px}
+.ag-evt .cdot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.ag-evt.done .t{color:#555;text-decoration:line-through}
+.ag-evt .t{flex:1}
+.load-btn{background:#222;border:none;color:#888;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;margin:8px auto;display:block}
+.load-btn:hover{color:#e0e0e0;background:#2a2a2a}
+.status-badge{font-size:9px;font-weight:800;border-radius:6px;padding:2px 7px;cursor:pointer;text-transform:uppercase;letter-spacing:.4px;border:1px solid transparent;white-space:nowrap}
+.status-badge.none{color:#555;border-color:#333}
+.status-badge.Tentative{color:#e0a840;border-color:#e0a84055;background:#e0a84011}
+.status-badge.Confirmed{color:#c8f04a;border-color:#c8f04a55;background:#c8f04a11}
+.status-badge.Done{color:#666;border-color:#333;background:#222;text-decoration:line-through}
+/* panels & forms */
+.form-panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:20px}
+.form-panel h3{font-size:13px;color:#888;text-transform:uppercase;letter-spacing:.6px;margin-bottom:14px}
+.bank-row{display:flex;align-items:center;gap:12px;margin-bottom:20px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 20px;flex-wrap:wrap}
+.bank-row label{font-size:13px;color:#888;white-space:nowrap}
+.bank-row input{background:var(--bg);border:1px solid #333;color:#e0e0e0;padding:8px 12px;border-radius:8px;font-size:13px;flex:1;min-width:120px}
+.bank-row input:focus{outline:none;border-color:var(--acc)}
+.btn-save{background:var(--acc);color:#141414;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px}
+.btn-save:hover{filter:brightness(1.1)}
+#setup-banner{background:#231a3a;border:1px solid #a78bfa44;border-radius:12px;padding:16px 20px;margin-bottom:16px;font-size:13px;color:var(--acc);line-height:1.5}
+/* modal */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:500;padding:12px}
+.modal-backdrop.open{display:flex}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;width:min(600px,94vw);max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.8)}
+.modal h3{font-size:15px;color:#e0e0e0;font-weight:800;margin-bottom:4px}
+.dm-meta{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 14px}
+.meta-tag{font-size:10px;font-weight:800;border-radius:6px;padding:2px 8px}
+.meta-tag.ph{background:#f8717122;color:#f87171}
+.meta-tag.q{background:#fbbf2422;color:#fbbf24}
+.meta-tag.w{background:#22d3ee22;color:#22d3ee}
+.meta-tag.kids{background:#fb923c22;color:#fb923c}
+.meta-tag.travel{background:#38bdf822;color:#38bdf8}
+.meta-tag.banner{background:#a78bfa22;color:var(--acc)}
+.meta-tag .x{cursor:pointer;margin-left:5px;opacity:.6}
+.meta-tag .x:hover{opacity:1}
+.dm-evt{display:flex;align-items:center;gap:8px;padding:9px 0;border-top:1px solid #1e1e1e;font-size:13px}
+.dm-evt .cdot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.dm-evt .t{flex:1;min-width:0}
+.dm-evt .cat{font-size:10px;color:#666}
+.dm-evt.done .t{color:#555;text-decoration:line-through}
+.icon-btn{background:none;border:none;color:#444;cursor:pointer;font-size:14px;padding:3px 6px;border-radius:6px}
+.icon-btn:hover{color:var(--acc);background:#222}
+.icon-btn.del:hover{color:#f04a4a;background:#2a1a1a}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px}
+.form-grid input,.form-grid select{background:var(--bg);border:1px solid #333;color:#e0e0e0;padding:9px 12px;border-radius:8px;font-size:13px;width:100%}
+.form-grid input:focus,.form-grid select:focus{outline:none;border-color:var(--acc)}
+.md-field{display:flex;flex-direction:column;gap:4px}
+.md-field label{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.6px}
+.check-row{display:flex;align-items:center;gap:8px;font-size:12px;color:#888;margin-top:10px}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;flex-wrap:wrap}
+.btn-add{background:var(--acc);color:#141414;border:none;padding:9px 20px;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px}
+.btn-add:hover{filter:brightness(1.1)}
+.btn-cancel{background:#222;color:#888;border:none;padding:9px 20px;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px}
+.btn-cancel:hover{background:#2a2a2a;color:#e0e0e0}
+.btn-danger{background:#2a1a1a;color:#f04a4a;border:1px solid #f04a4a44;padding:9px 20px;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px;margin-right:auto}
+#toast{position:fixed;bottom:24px;right:24px;background:var(--acc);color:#141414;padding:12px 20px;border-radius:10px;font-weight:700;font-size:13px;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;z-index:999}
+#toast.show{opacity:1;transform:translateY(0)}
+.empty{color:#444;font-size:13px;padding:16px 0;text-align:center}
+.wk-tag{font-size:9px;color:var(--acc);font-weight:800}
+@media (max-width:640px){
+  header{padding:10px 12px;gap:8px;flex-wrap:wrap}
+  header h1{font-size:15px}
+  nav{gap:4px}
+  .tab-btn{padding:7px 12px;font-size:12px}
+  main{padding:10px;padding-bottom:32px}
+  .cal-cell{min-height:64px;padding:4px;border-radius:8px}
+  .chip{font-size:0}
+  .chip .cdot{width:7px;height:7px;margin-right:2px}
+  .cell-banner{font-size:8px}
+  .up-date{min-width:70px}
+  .modal{padding:16px}
+  .cal-title{font-size:15px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Calendar</h1>
+    <nav>
+      <button class="tab-btn active" data-tab="month">Month</button>
+      <button class="tab-btn" data-tab="agenda">Agenda</button>
+      <button class="tab-btn" data-tab="sync">Sync</button>
+    </nav>
+  </header>
+  <main>
+    <!-- MONTH -->
+    <div class="tab-pane active" id="tab-month">
+      <div class="up-wrap">
+        <div class="up-title">Coming up — next 7 days</div>
+        <div id="upcoming"></div>
+      </div>
+      <div class="cal-nav">
+        <button class="cal-nav-btn" id="cal-prev">&#8249;</button>
+        <div class="cal-title" id="cal-title"></div>
+        <button class="cal-nav-btn" id="cal-next">&#8250;</button>
+        <button class="btn-today" id="cal-today">Today</button>
+      </div>
+      <div class="dow-row">
+        <div class="dow">Mon</div><div class="dow">Tue</div><div class="dow">Wed</div><div class="dow">Thu</div><div class="dow">Fri</div><div class="dow">Sat</div><div class="dow">Sun</div>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+    </div>
+    <!-- AGENDA -->
+    <div class="tab-pane" id="tab-agenda">
+      <div class="ag-filters">
+        <input type="text" id="ag-search" placeholder="Search all events (2023 → now)…"/>
+        <select id="ag-cat"><option value="">All categories</option></select>
+        <button class="flt" id="ag-past">Show past</button>
+      </div>
+      <button class="load-btn" id="ag-earlier" style="display:none">&#8593; Load earlier</button>
+      <div id="agenda-list"></div>
+      <button class="load-btn" id="ag-later">&#8595; Load more days</button>
+    </div>
+    <!-- SYNC -->
+    <div class="tab-pane" id="tab-sync">
+      <div id="setup-banner" style="display:none">
+        <strong>Almost there!</strong> Paste your calendar sync code below and tap Connect — your calendar will appear on this device and stay in sync automatically.
+      </div>
+      <div class="bank-row">
+        <label>Cloud Sync</label>
+        <input type="text" id="sync-url" placeholder="Paste your sync code (https://… .json)"/>
+        <button class="btn-save" id="save-sync-btn">Connect</button>
+        <span style="font-size:12px;white-space:nowrap;color:#555" id="sync-status"></span>
+      </div>
+      <div class="form-panel">
+        <h3>How sync works</h3>
+        <p style="font-size:13px;color:#888;line-height:1.7">
+          Your sync code is remembered on this device — you only ever enter it once.
+          Every change saves to the cloud instantly, and your other devices catch up automatically
+          when you open them. Treat the code like a password. To disconnect this device, clear the box and press Connect.
+        </p>
+      </div>
+      <div class="form-panel">
+        <h3>Backup</h3>
+        <p style="font-size:13px;color:#888;line-height:1.7">Download a copy of your whole calendar as a file — a good habit every month or so.</p>
+        <button class="btn-add" id="backup-btn">Download Backup</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- DAY MODAL -->
+<div class="modal-backdrop" id="day-modal">
+  <div class="modal">
+    <h3 id="dm-title"></h3>
+    <div class="dm-meta" id="dm-meta"></div>
+    <div id="dm-events"></div>
+    <div class="form-grid">
+      <div class="md-field" style="grid-column:1/-1"><label>New event</label><input type="text" id="dm-new-title" placeholder="What's on?"/></div>
+      <div class="md-field"><label>Category</label><select id="dm-new-cat"></select></div>
+      <div class="md-field"><label>Status</label><select id="dm-new-status">
+        <option value="">—</option><option>Tentative</option><option>Confirmed</option><option>Done</option>
+      </select></div>
+    </div>
+    <div class="check-row"><input type="checkbox" id="dm-new-weekly"/><label for="dm-new-weekly" id="dm-weekly-label">Repeat every week on this weekday</label></div>
+    <div class="check-row"><input type="text" id="dm-new-banner" placeholder="Or add a day banner (e.g. MICKY HOLIDAYS)" style="background:var(--bg);border:1px solid #333;color:#e0e0e0;padding:8px 12px;border-radius:8px;font-size:12px;flex:1"/><button class="btn-cancel" id="dm-add-banner" style="padding:8px 14px">+ Banner</button></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="dm-close">Close</button>
+      <button class="btn-add" id="dm-add">+ Add Event</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT EVENT MODAL -->
+<div class="modal-backdrop" id="edit-modal">
+  <div class="modal">
+    <h3 id="em-title">Edit Event</h3>
+    <div class="form-grid">
+      <div class="md-field" style="grid-column:1/-1"><label>Title</label><input type="text" id="em-t"/></div>
+      <div class="md-field"><label>Category</label><select id="em-cat"></select></div>
+      <div class="md-field"><label>Status</label><select id="em-status">
+        <option value="">—</option><option>Tentative</option><option>Confirmed</option><option>Done</option>
+      </select></div>
+      <div class="md-field"><label>Date</label><input type="date" id="em-date"/></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-danger" id="em-delete">Delete</button>
+      <button class="btn-cancel" id="em-cancel">Cancel</button>
+      <button class="btn-add" id="em-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- WEEKLY SERIES MODAL -->
+<div class="modal-backdrop" id="series-modal">
+  <div class="modal">
+    <h3>Repeating Weekly Event</h3>
+    <p style="font-size:12px;color:#888;margin-top:2px">Changes apply to every week it appears.</p>
+    <div class="form-grid">
+      <div class="md-field" style="grid-column:1/-1"><label>Title</label><input type="text" id="sm-t"/></div>
+      <div class="md-field"><label>Category</label><select id="sm-cat"></select></div>
+      <div class="md-field"><label>Day of week</label><select id="sm-dow">
+        <option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option>
+        <option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option>
+      </select></div>
+      <div class="md-field"><label>First date</label><input type="date" id="sm-start"/></div>
+      <div class="md-field"><label>Last date (optional)</label><input type="date" id="sm-end"/></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-danger" id="sm-delete">Delete series</button>
+      <button class="btn-cancel" id="sm-cancel">Cancel</button>
+      <button class="btn-add" id="sm-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>

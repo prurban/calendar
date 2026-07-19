@@ -4,7 +4,7 @@ if (IS_WEB) {
   const SYNC_KEY = 'cal-sync-url';
   const webValid = u => typeof u === 'string' && /^https:\/\/[^\s]+\.json$/.test(u.trim());
   const getUrl = () => (localStorage.getItem(SYNC_KEY) || '').trim();
-  const EMPTY = () => ({ events: [], weekly: [], banners: [], kidsDays: [], travelDays: {}, holidays: [], schoolHols: {}, suppressedWeekly: [], categories: {} });
+  const EMPTY = () => ({ events: [], weekly: [], banners: [], recurringBanners: [], kidsDays: [], travelDays: {}, holidays: [], schoolHols: {}, suppressedWeekly: [], suppressedBanners: [], categories: {} });
   window.api = {
     loadData: async () => {
       const url = getUrl();
@@ -42,7 +42,7 @@ const DEFAULT_COLOR = '#8b8b8b';
 const CYCLE_ANCHOR = '2026-06-19'; // same fortnight anchor as the finance app
 const WHO_COLORS = { 'Paiige': '#f472b6', 'Micky': '#60a5fa', 'PR Urban': '#c8f04a' };
 let whoFilter = ''; // '' = everyone
-let DATA = { events: [], weekly: [], banners: [], kidsDays: [], travelDays: {}, holidays: [], schoolHols: {}, suppressedWeekly: [], categories: {} };
+let DATA = { events: [], weekly: [], banners: [], recurringBanners: [], kidsDays: [], travelDays: {}, holidays: [], schoolHols: {}, suppressedWeekly: [], suppressedBanners: [], categories: {} };
 let viewYear = +TODAY.slice(0, 4);
 let viewMonth = +TODAY.slice(5, 7) - 1; // 0-11
 let dayCtx = null;        // date string open in day modal
@@ -86,11 +86,13 @@ function ensureDefaults(d) {
   if (!d.events) d.events = [];
   if (!d.weekly) d.weekly = [];
   if (!d.banners) d.banners = [];
+  if (!d.recurringBanners) d.recurringBanners = [];
   if (!d.kidsDays) d.kidsDays = [];
   if (!d.travelDays) d.travelDays = {};
   if (!d.holidays) d.holidays = [];
   if (!d.schoolHols) d.schoolHols = {};
   if (!d.suppressedWeekly) d.suppressedWeekly = [];
+  if (!d.suppressedBanners) d.suppressedBanners = [];
   if (!d.categories) d.categories = {};
   return d;
 }
@@ -123,6 +125,28 @@ function eventsOn(ds) {
 }
 function bannersOn(ds) { return DATA.banners.filter(b => b.date === ds); }
 function holidaysOn(ds) { return DATA.holidays.filter(h => h.date === ds); }
+function recurringBannersOn(ds) {
+  const dow = dowOf(ds);
+  const out = [];
+  for (const b of (DATA.recurringBanners || [])) {
+    if (!(b.dows || []).includes(dow)) continue;
+    if (b.startDate && ds < b.startDate) continue;
+    if (b.endDate && ds > b.endDate) continue;
+    const occId = `rb-${b.id}-${ds}`;
+    if ((DATA.suppressedBanners || []).includes(occId)) continue;
+    out.push({ id: occId, text: b.text, color: b.color || '#a78bfa', isRecurringBanner: true, rbId: b.id });
+  }
+  return out;
+}
+// one-off + recurring banners for a day, normalized to {text, color, ...}
+function dayBanners(ds) {
+  return [
+    ...bannersOn(ds).map(b => ({ id: b.id, text: b.text, color: '#a78bfa', isRecurringBanner: false })),
+    ...recurringBannersOn(ds),
+  ];
+}
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+function dowNames(dows) { return (dows || []).slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map(d => DAY_NAMES[d]).join('/'); }
 
 // ── Month view ─────────────────────────────────────────────────────────────
 function renderMonth() {
@@ -140,7 +164,7 @@ function renderMonth() {
     const ds = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     const inMonth = d.getMonth() === viewMonth;
     const evts = eventsOn(ds);
-    const bans = bannersOn(ds);
+    const bans = dayBanners(ds);
     const hols = holidaysOn(ds);
     const sch = DATA.schoolHols[ds];
     const isKids = DATA.kidsDays.includes(ds);
@@ -149,7 +173,7 @@ function renderMonth() {
     const chips = evts.slice(0, 3).map(e =>
       `<div class="chip ${e.status === 'Done' ? 'done' : ''}"><span class="cdot" style="background:${catColor(e.category)}"></span>${esc(e.title)}</div>`).join('');
     const more = evts.length > 3 ? `<div class="chip-more">+${evts.length - 3} more</div>` : '';
-    const banner = bans.length ? `<div class="cell-banner">${esc(bans[0].text)}${bans.length > 1 ? ' +' : ''}</div>` : '';
+    const banner = bans.length ? `<div class="cell-banner" style="color:${bans[0].color}">${esc(bans[0].text)}${bans.length > 1 ? ' +' + (bans.length - 1) : ''}</div>` : '';
     const htags = (sch === 'QLD' || sch === 'BOTH' ? '<span class="htag q">Q·HOL</span>' : '') +
                   (sch === 'WA' || sch === 'BOTH' ? '<span class="htag w">W·HOL</span>' : '');
     const bars = (isKids ? '<div class="bar kids" title="Kids in QLD"></div>' : '') +
@@ -172,10 +196,10 @@ function renderUpcoming() {
     const ds = addDaysStr(TODAY, i);
     const evts = eventsOn(ds).filter(e => e.status !== 'Done');
     const hols = holidaysOn(ds);
-    const bans = bannersOn(ds);
+    const bans = dayBanners(ds);
     const bits = [
       ...hols.map(h => `<span style="color:#f87171">${esc(h.name)}</span>`),
-      ...bans.map(b => `<span style="color:#a78bfa">${esc(b.text)}</span>`),
+      ...bans.map(b => `<span style="color:${b.color}">${esc(b.text)}</span>`),
       ...evts.map(e => `<span class="up-dot" style="background:${catColor(e.category)}"></span>${esc(e.title)}`),
     ];
     if (!bits.length) continue;
@@ -203,6 +227,7 @@ function openDay(ds) {
   document.getElementById('dm-new-title').value = '';
   document.getElementById('dm-new-banner').value = '';
   document.getElementById('dm-new-weekly').checked = false;
+  document.getElementById('dm-banner-weekly').checked = false;
   document.getElementById('day-modal').classList.add('open');
 }
 
@@ -216,6 +241,7 @@ function renderDayMeta() {
     DATA.kidsDays.includes(ds) ? `<span class="meta-tag kids">Kids in QLD <span class="x" data-act="kids">&#x2715;</span></span>` : '',
     DATA.travelDays[ds] ? `<span class="meta-tag travel">${esc(DATA.travelDays[ds])} <span class="x" data-act="travel">&#x2715;</span></span>` : '',
     ...bannersOn(ds).map(b => `<span class="meta-tag banner">${esc(b.text)} <span class="x" data-act="banner" data-id="${b.id}">&#x2715;</span></span>`),
+    ...recurringBannersOn(ds).map(b => `<span class="meta-tag banner" style="background:${b.color}22;color:${b.color}">${esc(b.text)} <span class="x" data-act="rbanner" data-id="${b.rbId}">&#x2715;</span></span>`),
     !DATA.kidsDays.includes(ds) ? `<span class="meta-tag kids" style="opacity:.45;cursor:pointer" data-act="addkids">+ Kids in QLD</span>` : '',
   ].filter(Boolean).join('');
   const el = document.getElementById('dm-meta');
@@ -226,6 +252,7 @@ function renderDayMeta() {
     if (act === 'addkids' && !DATA.kidsDays.includes(dayCtx)) DATA.kidsDays.push(dayCtx);
     if (act === 'travel') delete DATA.travelDays[dayCtx];
     if (act === 'banner') DATA.banners = DATA.banners.filter(b => b.id !== x.dataset.id);
+    if (act === 'rbanner') { if (!DATA.suppressedBanners) DATA.suppressedBanners = []; DATA.suppressedBanners.push(`rb-${x.dataset.id}-${dayCtx}`); }
     await save(); renderDayMeta(); renderAll();
   }));
 }
@@ -336,11 +363,11 @@ function renderAgenda() {
       let evts = eventsOn(ds);
       if (cat) evts = evts.filter(e => e.category === cat);
       const hols = holidaysOn(ds);
-      const bans = bannersOn(ds);
+      const bans = dayBanners(ds);
       if (!evts.length && !hols.length && !bans.length) continue;
       const minis = [
         ...hols.map(h => `<span class="mini" style="background:#f8717122;color:#f87171">${esc(h.name)}</span>`),
-        ...bans.map(b => `<span class="mini" style="background:#a78bfa22;color:#a78bfa">${esc(b.text)}</span>`),
+        ...bans.map(b => `<span class="mini" style="background:${b.color}22;color:${b.color}">${esc(b.text)}</span>`),
         DATA.kidsDays.includes(ds) ? '<span class="mini" style="background:#fb923c22;color:#fb923c">KIDS QLD</span>' : '',
         DATA.travelDays[ds] ? `<span class="mini" style="background:#38bdf822;color:#38bdf8">${esc(DATA.travelDays[ds])}</span>` : '',
       ].filter(Boolean).join('');
@@ -359,6 +386,60 @@ function renderAgenda() {
   el.querySelectorAll('.ag-date').forEach(h => h.addEventListener('click', () => openDay(h.dataset.date)));
 }
 
+// ── Manage (categories + recurring banners) ────────────────────────────────
+function armDelete(btn, label, onConfirm) {
+  if (btn.dataset.armed === '1') { onConfirm(); return; }
+  btn.dataset.armed = '1';
+  const original = btn.textContent;
+  btn.textContent = label;
+  btn.classList.add('armed');
+  setTimeout(() => {
+    if (btn.dataset.armed === '1') { btn.dataset.armed = '0'; btn.textContent = original; btn.classList.remove('armed'); }
+  }, 4000);
+}
+
+function renderManage() {
+  // Categories
+  const catEl = document.getElementById('manage-cats');
+  if (!catEl) return;
+  const cats = Object.keys(DATA.categories || {}).sort();
+  const counts = {};
+  for (const c of cats) counts[c] = DATA.events.filter(e => e.category === c).length + DATA.weekly.filter(w => w.category === c).length;
+  catEl.innerHTML = cats.length ? cats.map(c => `
+    <div class="mng-row">
+      <span class="cdot" style="background:${catColor(c)}"></span>
+      <span class="mng-name">${esc(c)}</span>
+      <span class="mng-count">${counts[c]}</span>
+      <button class="mng-del" data-cat="${esc(c)}">Delete all</button>
+    </div>`).join('') : '<div class="empty">No categories yet</div>';
+  catEl.querySelectorAll('.mng-del').forEach(btn => btn.addEventListener('click', () => {
+    const c = btn.dataset.cat;
+    armDelete(btn, `Tap again — delete ${counts[c]}`, async () => {
+      DATA.events = DATA.events.filter(e => e.category !== c);
+      DATA.weekly = DATA.weekly.filter(w => w.category !== c);
+      await save(); renderManage(); renderAll();
+      toast(`Deleted all "${c}" events`);
+    });
+  }));
+
+  // Recurring banners
+  const rbEl = document.getElementById('manage-rbanners');
+  const rbs = DATA.recurringBanners || [];
+  rbEl.innerHTML = rbs.length ? rbs.map(b => `
+    <div class="mng-row">
+      <span class="mng-name" style="color:${b.color || '#a78bfa'}">${esc(b.text)}</span>
+      <span class="mng-count" style="background:none">${dowNames(b.dows)}</span>
+      <button class="mng-del" data-rb="${b.id}">Delete</button>
+    </div>`).join('') : '<div class="empty">No repeating banners. Add one from any day (tick “Repeat weekly” next to the banner box).</div>';
+  rbEl.querySelectorAll('.mng-del').forEach(btn => btn.addEventListener('click', () => {
+    armDelete(btn, 'Tap again', async () => {
+      DATA.recurringBanners = (DATA.recurringBanners || []).filter(b => b.id !== btn.dataset.rb);
+      await save(); renderManage(); renderAll();
+      toast('Repeating banner removed');
+    });
+  }));
+}
+
 // ── Render all ─────────────────────────────────────────────────────────────
 function renderAll() {
   renderMonth();
@@ -370,6 +451,7 @@ function switchTab(name) {
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
   document.getElementById('who-row').style.display = name === 'sync' ? 'none' : '';
+  if (name === 'sync') renderManage();
 }
 
 // ── Sync UI (same pattern as the finance app) ──────────────────────────────
@@ -435,8 +517,17 @@ function wireEvents() {
   document.getElementById('dm-add-banner').addEventListener('click', async () => {
     const t = document.getElementById('dm-new-banner').value.trim();
     if (!t) return;
-    DATA.banners.push({ id: 'bn-' + Date.now(), date: dayCtx, text: t });
+    if (document.getElementById('dm-banner-weekly').checked) {
+      const dow = dowOf(dayCtx);
+      let rb = (DATA.recurringBanners || []).find(b => b.text.toLowerCase() === t.toLowerCase());
+      if (rb) { if (!rb.dows.includes(dow)) rb.dows.push(dow); }
+      else { if (!DATA.recurringBanners) DATA.recurringBanners = []; DATA.recurringBanners.push({ id: 'rb-' + Date.now(), dows: [dow], text: t, startDate: dayCtx }); }
+      toast('Repeating banner added');
+    } else {
+      DATA.banners.push({ id: 'bn-' + Date.now(), date: dayCtx, text: t });
+    }
     document.getElementById('dm-new-banner').value = '';
+    document.getElementById('dm-banner-weekly').checked = false;
     await save(); renderDayMeta(); renderAll();
   });
 
@@ -568,4 +659,5 @@ function wireEvents() {
 
   wireEvents();
   renderAll();
+  renderManage();
 })();

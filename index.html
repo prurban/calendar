@@ -148,6 +148,14 @@ main{flex:1;overflow:auto;padding:20px 24px}
 .fn-head{font-size:13px;font-weight:800;color:var(--acc);letter-spacing:.5px;margin:20px 0 8px;padding-bottom:7px;border-bottom:1px solid #2a2a2a;display:flex;gap:10px;align-items:center}
 .fn-head:first-child{margin-top:0}
 .fn-cur{font-size:9px;background:#a78bfa22;border:1px solid #a78bfa44;border-radius:6px;padding:1px 8px}
+/* manage rows */
+.mng-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #1e1e1e;font-size:13px}
+.mng-row:first-child{border-top:none}
+.mng-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mng-count{font-size:11px;color:#888;background:#222;border-radius:8px;padding:1px 8px;white-space:nowrap}
+.mng-del{background:#2a1a1a;color:#f04a4a;border:1px solid #f04a4a44;padding:5px 11px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap}
+.mng-del:hover{background:#3a2020}
+.mng-del.armed{background:#f04a4a;color:#141414;border-color:#f04a4a}
 @media (max-width:640px){
   header{padding:10px 12px;gap:8px;flex-wrap:wrap}
   header h1{font-size:15px}
@@ -231,6 +239,16 @@ header{padding-top:calc(14px + env(safe-area-inset-top, 0px))}
         </p>
       </div>
       <div class="form-panel">
+        <h3>Categories</h3>
+        <p style="font-size:13px;color:#888;line-height:1.6;margin-bottom:12px">Delete every event in a category at once (this removes matching one-off events and repeating weekly events). Tap Delete, then tap again to confirm.</p>
+        <div id="manage-cats"></div>
+      </div>
+      <div class="form-panel">
+        <h3>Repeating day banners</h3>
+        <p style="font-size:13px;color:#888;line-height:1.6;margin-bottom:12px">Banners that appear automatically on set weekdays (e.g. Easton Daycare Mon–Thu). Remove a single day by tapping the ✕ on that day; remove the whole thing here.</p>
+        <div id="manage-rbanners"></div>
+      </div>
+      <div class="form-panel">
         <h3>Backup</h3>
         <p style="font-size:13px;color:#888;line-height:1.7">Download a copy of your whole calendar as a file — a good habit every month or so.</p>
         <button class="btn-add" id="backup-btn">Download Backup</button>
@@ -257,6 +275,7 @@ header{padding-top:calc(14px + env(safe-area-inset-top, 0px))}
     </div>
     <div class="check-row"><input type="checkbox" id="dm-new-weekly"/><label for="dm-new-weekly" id="dm-weekly-label">Repeat every week on this weekday</label></div>
     <div class="check-row"><input type="text" id="dm-new-banner" placeholder="Or add a day banner (e.g. MICKY HOLIDAYS)" style="background:var(--bg);border:1px solid #333;color:#e0e0e0;padding:8px 12px;border-radius:8px;font-size:12px;flex:1"/><button class="btn-cancel" id="dm-add-banner" style="padding:8px 14px">+ Banner</button></div>
+    <div class="check-row"><input type="checkbox" id="dm-banner-weekly"/><label for="dm-banner-weekly">Repeat this banner weekly on this weekday</label></div>
     <div class="modal-actions">
       <button class="btn-cancel" id="dm-close">Close</button>
       <button class="btn-add" id="dm-add">+ Add Event</button>

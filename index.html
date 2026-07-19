@@ -162,6 +162,8 @@ main{flex:1;overflow:auto;padding:20px 24px}
   .modal{padding:16px}
   .cal-title{font-size:15px}
 }
+/* keep the header clear of the phone's status bar / notch */
+header{padding-top:calc(14px + env(safe-area-inset-top, 0px))}
 </style>
 </head>
 <body>

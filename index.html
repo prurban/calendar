@@ -245,7 +245,7 @@ header{padding-top:calc(14px + env(safe-area-inset-top, 0px))}
       </div>
       <div class="form-panel">
         <h3>Repeating day banners</h3>
-        <p style="font-size:13px;color:#888;line-height:1.6;margin-bottom:12px">Banners that appear automatically on set weekdays (e.g. Easton Daycare Mon–Thu). Remove a single day by tapping the ✕ on that day; remove the whole thing here.</p>
+        <p style="font-size:13px;color:#888;line-height:1.6;margin-bottom:12px">Banners that repeat weekly (e.g. Easton Daycare Mon–Thu) or yearly (birthdays &amp; anniversaries). Skip a single day with the ✕ on that day; remove the whole thing here.</p>
         <div id="manage-rbanners"></div>
       </div>
       <div class="form-panel">
@@ -275,7 +275,11 @@ header{padding-top:calc(14px + env(safe-area-inset-top, 0px))}
     </div>
     <div class="check-row"><input type="checkbox" id="dm-new-weekly"/><label for="dm-new-weekly" id="dm-weekly-label">Repeat every week on this weekday</label></div>
     <div class="check-row"><input type="text" id="dm-new-banner" placeholder="Or add a day banner (e.g. MICKY HOLIDAYS)" style="background:var(--bg);border:1px solid #333;color:#e0e0e0;padding:8px 12px;border-radius:8px;font-size:12px;flex:1"/><button class="btn-cancel" id="dm-add-banner" style="padding:8px 14px">+ Banner</button></div>
-    <div class="check-row"><input type="checkbox" id="dm-banner-weekly"/><label for="dm-banner-weekly">Repeat this banner weekly on this weekday</label></div>
+    <div class="check-row"><label style="color:#888;font-size:12px">Banner repeats:</label><select id="dm-banner-repeat" style="background:var(--bg);border:1px solid #333;color:#e0e0e0;padding:7px 10px;border-radius:8px;font-size:12px">
+      <option value="once">Just this day</option>
+      <option value="weekly">Every week on this weekday</option>
+      <option value="yearly">Every year on this date (birthdays!)</option>
+    </select></div>
     <div class="modal-actions">
       <button class="btn-cancel" id="dm-close">Close</button>
       <button class="btn-add" id="dm-add">+ Add Event</button>

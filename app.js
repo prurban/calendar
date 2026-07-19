@@ -4,7 +4,7 @@ if (IS_WEB) {
   const SYNC_KEY = 'cal-sync-url';
   const webValid = u => typeof u === 'string' && /^https:\/\/[^\s]+\.json$/.test(u.trim());
   const getUrl = () => (localStorage.getItem(SYNC_KEY) || '').trim();
-  const EMPTY = () => ({ events: [], weekly: [], banners: [], recurringBanners: [], kidsDays: [], travelDays: {}, holidays: [], schoolHols: {}, suppressedWeekly: [], suppressedBanners: [], categories: {} });
+  const EMPTY = () => ({ events: [], weekly: [], banners: [], recurringBanners: [], yearlyBanners: [], kidsDays: [], travelDays: {}, holidays: [], schoolHols: {}, suppressedWeekly: [], suppressedBanners: [], categories: {} });
   window.api = {
     loadData: async () => {
       const url = getUrl();
@@ -42,7 +42,7 @@ const DEFAULT_COLOR = '#8b8b8b';
 const CYCLE_ANCHOR = '2026-06-19'; // same fortnight anchor as the finance app
 const WHO_COLORS = { 'Paiige': '#f472b6', 'Micky': '#60a5fa', 'PR Urban': '#c8f04a' };
 let whoFilter = ''; // '' = everyone
-let DATA = { events: [], weekly: [], banners: [], recurringBanners: [], kidsDays: [], travelDays: {}, holidays: [], schoolHols: {}, suppressedWeekly: [], suppressedBanners: [], categories: {} };
+let DATA = { events: [], weekly: [], banners: [], recurringBanners: [], yearlyBanners: [], kidsDays: [], travelDays: {}, holidays: [], schoolHols: {}, suppressedWeekly: [], suppressedBanners: [], categories: {} };
 let viewYear = +TODAY.slice(0, 4);
 let viewMonth = +TODAY.slice(5, 7) - 1; // 0-11
 let dayCtx = null;        // date string open in day modal
@@ -87,6 +87,7 @@ function ensureDefaults(d) {
   if (!d.weekly) d.weekly = [];
   if (!d.banners) d.banners = [];
   if (!d.recurringBanners) d.recurringBanners = [];
+  if (!d.yearlyBanners) d.yearlyBanners = [];
   if (!d.kidsDays) d.kidsDays = [];
   if (!d.travelDays) d.travelDays = {};
   if (!d.holidays) d.holidays = [];
@@ -138,9 +139,22 @@ function recurringBannersOn(ds) {
   }
   return out;
 }
-// one-off + recurring banners for a day, normalized to {text, color, ...}
+function yearlyBannersOn(ds) {
+  const mmdd = ds.slice(5); // 'MM-DD'
+  const out = [];
+  for (const b of (DATA.yearlyBanners || [])) {
+    if (b.mmdd !== mmdd) continue;
+    if (b.startYear && +ds.slice(0, 4) < +b.startYear) continue;
+    const occId = `yb-${b.id}-${ds}`;
+    if ((DATA.suppressedBanners || []).includes(occId)) continue;
+    out.push({ id: occId, text: b.text, color: b.color || '#f472b6', isYearlyBanner: true, ybId: b.id });
+  }
+  return out;
+}
+// one-off + recurring + yearly banners for a day, normalized to {text, color, ...}
 function dayBanners(ds) {
   return [
+    ...yearlyBannersOn(ds),
     ...bannersOn(ds).map(b => ({ id: b.id, text: b.text, color: '#a78bfa', isRecurringBanner: false })),
     ...recurringBannersOn(ds),
   ];
@@ -227,7 +241,7 @@ function openDay(ds) {
   document.getElementById('dm-new-title').value = '';
   document.getElementById('dm-new-banner').value = '';
   document.getElementById('dm-new-weekly').checked = false;
-  document.getElementById('dm-banner-weekly').checked = false;
+  document.getElementById('dm-banner-repeat').value = 'once';
   document.getElementById('day-modal').classList.add('open');
 }
 
@@ -242,6 +256,7 @@ function renderDayMeta() {
     DATA.travelDays[ds] ? `<span class="meta-tag travel">${esc(DATA.travelDays[ds])} <span class="x" data-act="travel">&#x2715;</span></span>` : '',
     ...bannersOn(ds).map(b => `<span class="meta-tag banner">${esc(b.text)} <span class="x" data-act="banner" data-id="${b.id}">&#x2715;</span></span>`),
     ...recurringBannersOn(ds).map(b => `<span class="meta-tag banner" style="background:${b.color}22;color:${b.color}">${esc(b.text)} <span class="x" data-act="rbanner" data-id="${b.rbId}">&#x2715;</span></span>`),
+    ...yearlyBannersOn(ds).map(b => `<span class="meta-tag banner" style="background:${b.color}22;color:${b.color}">${esc(b.text)} &#127874; <span class="x" data-act="ybanner" data-id="${b.ybId}">&#x2715;</span></span>`),
     !DATA.kidsDays.includes(ds) ? `<span class="meta-tag kids" style="opacity:.45;cursor:pointer" data-act="addkids">+ Kids in QLD</span>` : '',
   ].filter(Boolean).join('');
   const el = document.getElementById('dm-meta');
@@ -253,6 +268,7 @@ function renderDayMeta() {
     if (act === 'travel') delete DATA.travelDays[dayCtx];
     if (act === 'banner') DATA.banners = DATA.banners.filter(b => b.id !== x.dataset.id);
     if (act === 'rbanner') { if (!DATA.suppressedBanners) DATA.suppressedBanners = []; DATA.suppressedBanners.push(`rb-${x.dataset.id}-${dayCtx}`); }
+    if (act === 'ybanner') { if (!DATA.suppressedBanners) DATA.suppressedBanners = []; DATA.suppressedBanners.push(`yb-${x.dataset.id}-${dayCtx}`); }
     await save(); renderDayMeta(); renderAll();
   }));
 }
@@ -422,18 +438,30 @@ function renderManage() {
     });
   }));
 
-  // Recurring banners
+  // Weekly + yearly repeating banners
   const rbEl = document.getElementById('manage-rbanners');
   const rbs = DATA.recurringBanners || [];
-  rbEl.innerHTML = rbs.length ? rbs.map(b => `
+  const ybs = (DATA.yearlyBanners || []).slice().sort((a, b) => (a.mmdd || '').localeCompare(b.mmdd || ''));
+  const fmtMmdd = (mmdd) => new Date(`2026-${mmdd}T00:00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
+  const rows = [
+    ...rbs.map(b => `
     <div class="mng-row">
       <span class="mng-name" style="color:${b.color || '#a78bfa'}">${esc(b.text)}</span>
-      <span class="mng-count" style="background:none">${dowNames(b.dows)}</span>
+      <span class="mng-count" style="background:none">Weekly · ${dowNames(b.dows)}</span>
       <button class="mng-del" data-rb="${b.id}">Delete</button>
-    </div>`).join('') : '<div class="empty">No repeating banners. Add one from any day (tick “Repeat weekly” next to the banner box).</div>';
+    </div>`),
+    ...ybs.map(b => `
+    <div class="mng-row">
+      <span class="mng-name" style="color:${b.color || '#f472b6'}">${esc(b.text)}</span>
+      <span class="mng-count" style="background:none">Yearly · ${fmtMmdd(b.mmdd)}</span>
+      <button class="mng-del" data-yb="${b.id}">Delete</button>
+    </div>`),
+  ];
+  rbEl.innerHTML = rows.length ? rows.join('') : '<div class="empty">No repeating banners yet. Add one from any day — set "Banner repeats" to weekly or yearly.</div>';
   rbEl.querySelectorAll('.mng-del').forEach(btn => btn.addEventListener('click', () => {
     armDelete(btn, 'Tap again', async () => {
-      DATA.recurringBanners = (DATA.recurringBanners || []).filter(b => b.id !== btn.dataset.rb);
+      if (btn.dataset.rb) DATA.recurringBanners = (DATA.recurringBanners || []).filter(b => b.id !== btn.dataset.rb);
+      if (btn.dataset.yb) DATA.yearlyBanners = (DATA.yearlyBanners || []).filter(b => b.id !== btn.dataset.yb);
       await save(); renderManage(); renderAll();
       toast('Repeating banner removed');
     });
@@ -517,17 +545,22 @@ function wireEvents() {
   document.getElementById('dm-add-banner').addEventListener('click', async () => {
     const t = document.getElementById('dm-new-banner').value.trim();
     if (!t) return;
-    if (document.getElementById('dm-banner-weekly').checked) {
+    const mode = document.getElementById('dm-banner-repeat').value;
+    if (mode === 'weekly') {
       const dow = dowOf(dayCtx);
       let rb = (DATA.recurringBanners || []).find(b => b.text.toLowerCase() === t.toLowerCase());
       if (rb) { if (!rb.dows.includes(dow)) rb.dows.push(dow); }
       else { if (!DATA.recurringBanners) DATA.recurringBanners = []; DATA.recurringBanners.push({ id: 'rb-' + Date.now(), dows: [dow], text: t, startDate: dayCtx }); }
-      toast('Repeating banner added');
+      toast('Weekly banner added');
+    } else if (mode === 'yearly') {
+      if (!DATA.yearlyBanners) DATA.yearlyBanners = [];
+      DATA.yearlyBanners.push({ id: 'yb-' + Date.now(), mmdd: dayCtx.slice(5), text: t, color: '#f472b6', startYear: dayCtx.slice(0, 4) });
+      toast('Yearly banner added — it will appear every year');
     } else {
       DATA.banners.push({ id: 'bn-' + Date.now(), date: dayCtx, text: t });
     }
     document.getElementById('dm-new-banner').value = '';
-    document.getElementById('dm-banner-weekly').checked = false;
+    document.getElementById('dm-banner-repeat').value = 'once';
     await save(); renderDayMeta(); renderAll();
   });
 

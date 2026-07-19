@@ -478,7 +478,7 @@ function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
-  document.getElementById('who-row').style.display = name === 'sync' ? 'none' : '';
+  document.getElementById('who-row').style.display = (name === 'sync' || name === 'help') ? 'none' : '';
   if (name === 'sync') renderManage();
 }
 

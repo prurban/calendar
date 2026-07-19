@@ -156,11 +156,22 @@ main{flex:1;overflow:auto;padding:20px 24px}
 .mng-del{background:#2a1a1a;color:#f04a4a;border:1px solid #f04a4a44;padding:5px 11px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap}
 .mng-del:hover{background:#3a2020}
 .mng-del.armed{background:#f04a4a;color:#141414;border-color:#f04a4a}
+/* help */
+.help-wrap{max-width:820px}
+.help-wrap details{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden}
+.help-wrap summary{padding:14px 18px;font-size:14px;font-weight:800;color:var(--acc);cursor:pointer;list-style:none}
+.help-wrap summary::before{content:"▸ ";color:#555}
+.help-wrap details[open] summary::before{content:"▾ "}
+.help-body{padding:0 18px 16px;font-size:13px;color:#bbb;line-height:1.7}
+.help-body p{margin-bottom:8px}
+.help-body b{color:#e8e8e8}
+.help-body .hk{background:var(--bg);border:1px solid #333;border-radius:6px;padding:1px 7px;font-size:12px;color:var(--acc);white-space:nowrap}
+.help-intro{font-size:13px;color:#999;line-height:1.7;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:14px}
 @media (max-width:640px){
   header{padding:10px 12px;gap:8px;flex-wrap:wrap}
   header h1{font-size:15px}
-  nav{gap:4px}
-  .tab-btn{padding:7px 12px;font-size:12px}
+  nav{gap:4px;flex-wrap:wrap;justify-content:flex-end}
+  .tab-btn{padding:6px 10px;font-size:11px}
   main{padding:10px;padding-bottom:32px}
   .cal-cell{min-height:64px;padding:4px;border-radius:8px}
   .chip{font-size:0}
@@ -182,6 +193,7 @@ header{padding-top:calc(14px + env(safe-area-inset-top, 0px))}
       <button class="tab-btn active" data-tab="month">Month</button>
       <button class="tab-btn" data-tab="agenda">Fortnights</button>
       <button class="tab-btn" data-tab="sync">Sync</button>
+      <button class="tab-btn" data-tab="help">Help</button>
     </nav>
   </header>
   <main>
@@ -218,6 +230,52 @@ header{padding-top:calc(14px + env(safe-area-inset-top, 0px))}
       <button class="load-btn" id="ag-earlier" style="display:none">&#8593; Load earlier</button>
       <div id="agenda-list"></div>
       <button class="load-btn" id="ag-later">&#8595; Load more days</button>
+    </div>
+    <!-- HELP -->
+    <div class="tab-pane" id="tab-help">
+      <div class="help-wrap">
+        <div class="help-intro"><b style="color:var(--acc)">How this app works, in one breath:</b> one shared household calendar for you, Micky and PR Urban. Tap any day to see or add what's on. Events carry a <b>who</b>, a colour-coded <b>category</b> and a <b>status</b>; day-wide things (daycare, birthdays, holidays) show as <b>banners</b>. The person chips at the top filter everything, and it all syncs instantly to every connected phone and computer.</div>
+
+        <details open><summary>Person tabs — Everyone / Paiige / Micky / PR Urban</summary><div class="help-body">
+          <p><b>What they do:</b> filter every view (Month, Fortnights, Coming Up, search) down to one person's things. Colour tags: pink Paiige, blue Micky, lime PR Urban.</p>
+          <p><b>When:</b> Micky opens his tab to see only his stuff; you open PR Urban when planning the business week. <b>Everyone</b> is the household master view.</p>
+          <p><b>Handy:</b> whichever tab you're on pre-fills the "Who" when you add a new event. Day-wide context (banners, holidays, kids-in-QLD) shows on all tabs since it affects everyone.</p>
+        </div></details>
+
+        <details><summary>Month view — reading the grid</summary><div class="help-body">
+          <p><b>Navigate:</b> <span class="hk">‹</span> <span class="hk">›</span> change months, <span class="hk">Today</span> jumps home. Today's cell has a purple ring.</p>
+          <p><b>What the markings mean:</b> a <b>red date number</b> = public holiday · <span class="hk">Q·HOL</span>/<span class="hk">W·HOL</span> = QLD/WA school holidays · <b>orange bar</b> along the bottom = kids in QLD that day · <b>blue bar</b> = Mackay travel · <b>coloured text line</b> = a banner (yellow daycare, pink birthdays, purple everything else) · <b>coloured dots</b> = events, coloured by category · <b>+2 more</b> = tap the day to see the rest.</p>
+          <p><b>Coming up — next 7 days:</b> the strip above the grid, your week at a glance. Done items drop off it automatically.</p>
+        </div></details>
+
+        <details><summary>The day panel — add &amp; manage everything (tap any day)</summary><div class="help-body">
+          <p><b>Add an event:</b> type what's on, pick Who, Category, Status → <span class="hk">+ Add Event</span>.</p>
+          <p><b>Make it repeat weekly:</b> tick <b>"Repeat every [weekday]"</b> before adding — perfect for classes and chores. It then appears every week (marked ↻) until you end it.</p>
+          <p><b>Status:</b> tap the badge on any event to cycle — Tentative → Confirmed → Done → blank. Done items show crossed out.</p>
+          <p><b>✎ edit / ✕ delete:</b> on a normal event, edits and deletes just it. On a ↻ weekly event, ✎ edits the whole series (title, day, category, first/last date, delete series) while ✕ skips <b>just that week</b>.</p>
+          <p><b>Banners:</b> type in the banner box, choose how it repeats — <b>Just this day</b> (e.g. MICKY HOLIDAYS), <b>Every week on this weekday</b> (e.g. Easton Daycare), or <b>Every year on this date</b> (birthdays &amp; anniversaries!) → <span class="hk">+ Banner</span>. The ✕ on a repeating banner's tag removes only that day/that year — the rest continue.</p>
+          <p><b>Kids in QLD:</b> tap <b>+ Kids in QLD</b> to flag a day (orange bar), ✕ on the tag to unflag.</p>
+        </div></details>
+
+        <details><summary>Fortnights view — planning &amp; finding anything</summary><div class="help-body">
+          <p><b>What it is:</b> a scrolling day list grouped into the same Friday fortnights as the money app, current fortnight badged. <b>When:</b> planning ahead in the same rhythm you budget in.</p>
+          <p><b>Controls:</b> <span class="hk">Show past</span> scrolls backwards, <span class="hk">Load more days</span> extends forward, the category dropdown narrows to one thing (e.g. only Chores). Tap any date header to open that day.</p>
+          <p><b>Search:</b> the search box digs through <b>everything back to 2023</b> — every class, shift and appointment from the old Excel is in here. Type a name or word and it lists every match.</p>
+        </div></details>
+
+        <details><summary>Chores rota &amp; meal planning</summary><div class="help-body">
+          <p>Ready-made colour categories exist for both: <b>Chores</b> (teal) and <b>Meals</b> (rose).</p>
+          <p><b>Chores:</b> add each job as a weekly repeating event on the right person's tab — "Bins out" Micky/Thursdays, "Studio invoicing" PR Urban/Mondays. Someone skips a week? ✕ skips just that week. Tap the status badge to mark Done.</p>
+          <p><b>Meals:</b> same idea with the Meals category — "Taco Tuesday" weekly, or plan a specific week by adding one-offs to each day.</p>
+        </div></details>
+
+        <details><summary>Settings (Sync tab) — the admin corner</summary><div class="help-body">
+          <p><b>Categories:</b> every category with its event count and a <b>Delete all</b> (tap twice to confirm) that wipes all its events — one-offs and weekly series both. <b>When:</b> clearing out a whole class program or an old system in one go.</p>
+          <p><b>Repeating day banners:</b> every weekly and yearly banner (including all 16 birthdays) listed with a Delete. Wrong birthday date? Delete it here, then re-add it on the right day.</p>
+          <p><b>Cloud Sync:</b> paste the sync code once per new device. Treat the code like a password. "Sync error" just means no internet right now.</p>
+          <p><b>Download Backup:</b> your whole calendar as a file — monthly, into OneDrive. Restoring = the backup file plus the sync code, handed to any tech-savvy helper or Claude.</p>
+        </div></details>
+      </div>
     </div>
     <!-- SYNC -->
     <div class="tab-pane" id="tab-sync">

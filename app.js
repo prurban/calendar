@@ -39,6 +39,9 @@ if (IS_WEB) {
 // ── Constants & state ──────────────────────────────────────────────────────
 const TODAY = new Date().toISOString().split('T')[0];
 const DEFAULT_COLOR = '#8b8b8b';
+const CYCLE_ANCHOR = '2026-06-19'; // same fortnight anchor as the finance app
+const WHO_COLORS = { 'Paiige': '#f472b6', 'Micky': '#60a5fa', 'PR Urban': '#c8f04a' };
+let whoFilter = ''; // '' = everyone
 let DATA = { events: [], weekly: [], banners: [], kidsDays: [], travelDays: {}, holidays: [], schoolHols: {}, suppressedWeekly: [], categories: {} };
 let viewYear = +TODAY.slice(0, 4);
 let viewMonth = +TODAY.slice(5, 7) - 1; // 0-11
@@ -56,6 +59,22 @@ function dowOf(ds) { return new Date(ds + 'T00:00:00').getDay(); }
 function fmtLong(ds) { return new Date(ds + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); }
 function fmtShort(ds) { return new Date(ds + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase(); }
 function catColor(c) { return (DATA.categories || {})[c] || DEFAULT_COLOR; }
+function whoOf(e) {
+  if (e.who) return e.who;
+  // Imported entries get sorted automatically
+  if (e.category === 'PR Urban Dance' || e.category === 'Brisbane Dance Theatre' || e.category === 'Beyond Theatre Co') return 'PR Urban';
+  if (/MICKY/i.test(e.title || '')) return 'Micky';
+  return 'Paiige';
+}
+function whoTag(e) {
+  const w = whoOf(e);
+  return `<span class="who-tag" style="background:${WHO_COLORS[w]}22;color:${WHO_COLORS[w]}">${w}</span>`;
+}
+function fnStartOf(ds) {
+  const diff = Math.round((new Date(ds + 'T00:00:00') - new Date(CYCLE_ANCHOR + 'T00:00:00')) / 86400000);
+  const offset = ((diff % 14) + 14) % 14;
+  return addDaysStr(ds, -offset);
+}
 function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function toast(msg) {
   const el = document.getElementById('toast');
@@ -99,7 +118,8 @@ function weeklyOccurrences(ds) {
   return out;
 }
 function eventsOn(ds) {
-  return [...DATA.events.filter(e => e.date === ds), ...weeklyOccurrences(ds)];
+  const all = [...DATA.events.filter(e => e.date === ds), ...weeklyOccurrences(ds)];
+  return whoFilter ? all.filter(e => whoOf(e) === whoFilter) : all;
 }
 function bannersOn(ds) { return DATA.banners.filter(b => b.date === ds); }
 function holidaysOn(ds) { return DATA.holidays.filter(h => h.date === ds); }
@@ -177,6 +197,7 @@ function openDay(ds) {
   const dowName = new Date(ds + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'long' });
   document.getElementById('dm-weekly-label').textContent = `Repeat every ${dowName}`;
   populateCats(document.getElementById('dm-new-cat'));
+  document.getElementById('dm-new-who').value = whoFilter || 'Paiige';
   renderDayMeta();
   renderDayEvents();
   document.getElementById('dm-new-title').value = '';
@@ -217,7 +238,7 @@ function renderDayEvents() {
   el.innerHTML = evts.length ? evts.map(e => `
     <div class="dm-evt ${e.status === 'Done' ? 'done' : ''}">
       <span class="cdot" style="background:${catColor(e.category)}"></span>
-      <span class="t">${esc(e.title)} ${e.isWeekly ? '<span class="wk-tag">&#8635; weekly</span>' : ''}<br><span class="cat">${esc(e.category || '')}</span></span>
+      <span class="t">${esc(e.title)} ${e.isWeekly ? '<span class="wk-tag">&#8635; weekly</span>' : ''} ${whoTag(e)}<br><span class="cat">${esc(e.category || '')}</span></span>
       <span class="status-badge ${e.status || 'none'}" data-id="${e.id}">${e.status || 'set status'}</span>
       <button class="icon-btn" data-edit="${e.id}" title="Edit">&#9998;</button>
       <button class="icon-btn del" data-del="${e.id}" title="${e.isWeekly ? 'Skip just this week' : 'Delete'}">&#x2715;</button>
@@ -262,6 +283,7 @@ function openEdit(ev) {
   editCtx = ev.id;
   populateCats(document.getElementById('em-cat'));
   document.getElementById('em-t').value = ev.title;
+  document.getElementById('em-who').value = whoOf(ev);
   document.getElementById('em-cat').value = ev.category || '';
   document.getElementById('em-status').value = ev.status || '';
   document.getElementById('em-date').value = ev.date;
@@ -274,6 +296,7 @@ function openSeries(w) {
   seriesCtx = w.id;
   populateCats(document.getElementById('sm-cat'));
   document.getElementById('sm-t').value = w.title;
+  document.getElementById('sm-who').value = whoOf(w);
   document.getElementById('sm-cat').value = w.category || '';
   document.getElementById('sm-dow').value = String(w.dow);
   document.getElementById('sm-start').value = w.startDate || '';
@@ -292,7 +315,7 @@ function renderAgenda() {
   if (q) {
     // Search everything, newest first
     const hits = DATA.events.filter(e =>
-      e.title.toLowerCase().includes(q) && (!cat || e.category === cat)
+      e.title.toLowerCase().includes(q) && (!cat || e.category === cat) && (!whoFilter || whoOf(e) === whoFilter)
     ).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 200);
     el.innerHTML = hits.length ? hits.map(e => `
       <div class="ag-day"><div class="ag-date" data-date="${e.date}">${fmtShort(e.date)} ${e.date.slice(0, 4)}</div>
@@ -301,8 +324,15 @@ function renderAgenda() {
   } else {
     const start = agShowPast ? addDaysStr(TODAY, -agDays) : agStart;
     let html = '';
+    let lastFn = null;
+    const curFnStart = fnStartOf(TODAY);
     for (let i = 0; i < (agShowPast ? agDays * 2 : agDays); i++) {
       const ds = addDaysStr(start, i);
+      const fs = fnStartOf(ds);
+      if (fs !== lastFn) {
+        lastFn = fs;
+        html += `<div class="fn-head">FORTNIGHT &nbsp;${fmtShort(fs)} &mdash; ${fmtShort(addDaysStr(fs, 13))}${fs === curFnStart ? ' <span class="fn-cur">CURRENT</span>' : ''}</div>`;
+      }
       let evts = eventsOn(ds);
       if (cat) evts = evts.filter(e => e.category === cat);
       const hols = holidaysOn(ds);
@@ -319,6 +349,7 @@ function renderAgenda() {
         ${evts.map(e => `<div class="ag-evt ${e.status === 'Done' ? 'done' : ''}">
           <span class="cdot" style="background:${catColor(e.category)}"></span>
           <span class="t">${esc(e.title)} ${e.isWeekly ? '<span class="wk-tag">&#8635;</span>' : ''}</span>
+          ${whoFilter ? '' : whoTag(e)}
           <span class="status-badge ${e.status || 'none'}" style="cursor:default">${e.status || '—'}</span>
         </div>`).join('')}
       </div>`;
@@ -338,6 +369,7 @@ function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
+  document.getElementById('who-row').style.display = name === 'sync' ? 'none' : '';
 }
 
 // ── Sync UI (same pattern as the finance app) ──────────────────────────────
@@ -369,6 +401,15 @@ function wireEvents() {
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => { switchTab(btn.dataset.tab); if (btn.dataset.tab === 'agenda') renderAgenda(); });
   });
+
+  // Person tabs
+  document.querySelectorAll('.who-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      whoFilter = chip.dataset.who;
+      document.querySelectorAll('.who-chip').forEach(c => c.classList.toggle('active', c === chip));
+      renderAll();
+    });
+  });
   document.getElementById('cal-prev').addEventListener('click', () => { viewMonth--; if (viewMonth < 0) { viewMonth = 11; viewYear--; } renderMonth(); });
   document.getElementById('cal-next').addEventListener('click', () => { viewMonth++; if (viewMonth > 11) { viewMonth = 0; viewYear++; } renderMonth(); });
   document.getElementById('cal-today').addEventListener('click', () => { viewYear = +TODAY.slice(0, 4); viewMonth = +TODAY.slice(5, 7) - 1; renderMonth(); });
@@ -381,11 +422,12 @@ function wireEvents() {
     if (!title) { toast('Type what the event is first'); return; }
     const category = document.getElementById('dm-new-cat').value;
     const status = document.getElementById('dm-new-status').value;
+    const who = document.getElementById('dm-new-who').value;
     if (document.getElementById('dm-new-weekly').checked) {
-      DATA.weekly.push({ id: 'w-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5), dow: dowOf(dayCtx), title, category, startDate: dayCtx });
+      DATA.weekly.push({ id: 'w-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5), dow: dowOf(dayCtx), title, category, who, startDate: dayCtx });
       toast('Weekly event added');
     } else {
-      DATA.events.push({ id: 'ev-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5), date: dayCtx, title, category, status });
+      DATA.events.push({ id: 'ev-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5), date: dayCtx, title, category, status, who });
     }
     document.getElementById('dm-new-title').value = '';
     await save(); renderDayEvents(); renderAll();
@@ -409,6 +451,7 @@ function wireEvents() {
       if (!d) { toast('Pick a date'); return; }
       ev.title = t; ev.category = document.getElementById('em-cat').value;
       ev.status = document.getElementById('em-status').value; ev.date = d;
+      ev.who = document.getElementById('em-who').value;
     }
     document.getElementById('edit-modal').classList.remove('open'); editCtx = null;
     await save(); if (dayCtx) renderDayEvents(); renderAll();
@@ -427,6 +470,7 @@ function wireEvents() {
       const t = document.getElementById('sm-t').value.trim();
       if (!t) { toast('Title can\'t be empty'); return; }
       w.title = t; w.category = document.getElementById('sm-cat').value;
+      w.who = document.getElementById('sm-who').value;
       w.dow = +document.getElementById('sm-dow').value;
       w.startDate = document.getElementById('sm-start').value || w.startDate;
       const end = document.getElementById('sm-end').value;

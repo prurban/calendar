@@ -135,6 +135,19 @@ main{flex:1;overflow:auto;padding:20px 24px}
 #toast.show{opacity:1;transform:translateY(0)}
 .empty{color:#444;font-size:13px;padding:16px 0;text-align:center}
 .wk-tag{font-size:9px;color:var(--acc);font-weight:800}
+/* person tabs */
+.who-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.who-chip{background:#1e1e1e;border:1px solid #333;color:#888;padding:8px 18px;border-radius:18px;cursor:pointer;font-size:13px;font-weight:700;transition:all .15s}
+.who-chip:hover:not(.active){color:#e0e0e0;border-color:#555}
+.who-chip.active[data-who=""]{background:var(--acc);border-color:var(--acc);color:#141414}
+.who-chip.active[data-who="Paiige"]{background:#f472b6;border-color:#f472b6;color:#141414}
+.who-chip.active[data-who="Micky"]{background:#60a5fa;border-color:#60a5fa;color:#141414}
+.who-chip.active[data-who="PR Urban"]{background:#c8f04a;border-color:#c8f04a;color:#141414}
+.who-tag{font-size:9px;font-weight:800;border-radius:5px;padding:1px 6px;white-space:nowrap}
+/* fortnight headers */
+.fn-head{font-size:13px;font-weight:800;color:var(--acc);letter-spacing:.5px;margin:20px 0 8px;padding-bottom:7px;border-bottom:1px solid #2a2a2a;display:flex;gap:10px;align-items:center}
+.fn-head:first-child{margin-top:0}
+.fn-cur{font-size:9px;background:#a78bfa22;border:1px solid #a78bfa44;border-radius:6px;padding:1px 8px}
 @media (max-width:640px){
   header{padding:10px 12px;gap:8px;flex-wrap:wrap}
   header h1{font-size:15px}
@@ -157,11 +170,17 @@ main{flex:1;overflow:auto;padding:20px 24px}
     <h1>Calendar</h1>
     <nav>
       <button class="tab-btn active" data-tab="month">Month</button>
-      <button class="tab-btn" data-tab="agenda">Agenda</button>
+      <button class="tab-btn" data-tab="agenda">Fortnights</button>
       <button class="tab-btn" data-tab="sync">Sync</button>
     </nav>
   </header>
   <main>
+    <div class="who-row" id="who-row">
+      <button class="who-chip active" data-who="">Everyone</button>
+      <button class="who-chip" data-who="Paiige">Paiige</button>
+      <button class="who-chip" data-who="Micky">Micky</button>
+      <button class="who-chip" data-who="PR Urban">PR Urban</button>
+    </div>
     <!-- MONTH -->
     <div class="tab-pane active" id="tab-month">
       <div class="up-wrap">
@@ -226,6 +245,9 @@ main{flex:1;overflow:auto;padding:20px 24px}
     <div id="dm-events"></div>
     <div class="form-grid">
       <div class="md-field" style="grid-column:1/-1"><label>New event</label><input type="text" id="dm-new-title" placeholder="What's on?"/></div>
+      <div class="md-field"><label>Who</label><select id="dm-new-who">
+        <option>Paiige</option><option>Micky</option><option>PR Urban</option>
+      </select></div>
       <div class="md-field"><label>Category</label><select id="dm-new-cat"></select></div>
       <div class="md-field"><label>Status</label><select id="dm-new-status">
         <option value="">—</option><option>Tentative</option><option>Confirmed</option><option>Done</option>
@@ -246,6 +268,9 @@ main{flex:1;overflow:auto;padding:20px 24px}
     <h3 id="em-title">Edit Event</h3>
     <div class="form-grid">
       <div class="md-field" style="grid-column:1/-1"><label>Title</label><input type="text" id="em-t"/></div>
+      <div class="md-field"><label>Who</label><select id="em-who">
+        <option>Paiige</option><option>Micky</option><option>PR Urban</option>
+      </select></div>
       <div class="md-field"><label>Category</label><select id="em-cat"></select></div>
       <div class="md-field"><label>Status</label><select id="em-status">
         <option value="">—</option><option>Tentative</option><option>Confirmed</option><option>Done</option>
@@ -267,6 +292,9 @@ main{flex:1;overflow:auto;padding:20px 24px}
     <p style="font-size:12px;color:#888;margin-top:2px">Changes apply to every week it appears.</p>
     <div class="form-grid">
       <div class="md-field" style="grid-column:1/-1"><label>Title</label><input type="text" id="sm-t"/></div>
+      <div class="md-field"><label>Who</label><select id="sm-who">
+        <option>Paiige</option><option>Micky</option><option>PR Urban</option>
+      </select></div>
       <div class="md-field"><label>Category</label><select id="sm-cat"></select></div>
       <div class="md-field"><label>Day of week</label><select id="sm-dow">
         <option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option>
